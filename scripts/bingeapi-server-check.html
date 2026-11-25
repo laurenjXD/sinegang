@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BingeAPI server check · Sinegang dev tool</title>
+  <style>
+    :root{font-family:system-ui,sans-serif;color:#f5f7fa;background:#050505;color-scheme:dark}*{box-sizing:border-box}body{max-width:1100px;margin:0 auto;padding:24px}h1{font-size:clamp(28px,5vw,44px);margin:12px 0}p{color:#b9c1c9;line-height:1.55}textarea{width:100%;min-height:180px;padding:14px;border:1px solid #414a55;border-radius:12px;background:#101216;color:inherit;font:13px/1.5 ui-monospace,monospace}button{min-height:44px;padding:0 18px;border:0;border-radius:10px;background:#ff6b35;color:#050505;font:700 15px system-ui;cursor:pointer}button.secondary{background:#222832;color:#fff;border:1px solid #4a525e}button:focus-visible,textarea:focus-visible{outline:2px solid #7dd3fc;outline-offset:3px}.actions{display:flex;gap:10px;margin:14px 0;flex-wrap:wrap}.status{min-height:24px;color:#7dd3fc}.frame-wrap{max-width:900px;margin:20px auto;aspect-ratio:16/9;background:#101216;border:1px solid #303640;border-radius:14px;overflow:hidden}.frame-wrap iframe{width:100%;height:100%;border:0}.frame-wrap[hidden]{display:none}table{width:100%;border-collapse:collapse;margin-top:20px;font-size:14px}th,td{text-align:left;padding:10px;border-bottom:1px solid #303640;vertical-align:top}th{color:#7dd3fc}code{color:#7dd3fc}.note{padding:14px;border:1px solid #303640;border-radius:12px;background:#101216}
+  </style>
+</head>
+<body>
+  <p class="note"><strong>Known-title diagnostic only.</strong> This checks a small list of TMDB IDs you provide. It does not discover or enumerate the provider's catalog. The official reference says <code>servers=</code> prioritizes a server and then falls back to the rest, so results identify the first server reported by the player rather than proving a complete inventory. Keep the list to titles you are authorized to test.</p>
+  <h1>BingeAPI server check</h1>
+  <p>Enter up to five known titles or episodes. The tool tests each title once with each documented server number as the first preference. It loads only one player at a time. If a welcome screen or verification appears, complete it in the player; blocked or silent probes are recorded as inconclusive.</p>
+  <label for="titles"><strong>Known title candidates (JSON)</strong></label>
+  <textarea id="titles" spellcheck="false">[
+  { "label": "Inception", "kind": "movie", "id": 27205 },
+  { "label": "Breaking Bad S1E1", "kind": "tv", "id": 1396, "season": 1, "episode": 1 }
+]</textarea>
+  <div class="actions">
+    <button id="run">Run server checks</button>
+    <button id="stop" class="secondary" disabled>Stop</button>
+    <button id="download" class="secondary" disabled>Download CSV</button>
+  </div>
+  <p id="status" class="status" role="status" aria-live="polite">Ready. Each probe waits up to 30 seconds for the player’s first server or error event.</p>
+  <div id="frame-wrap" class="frame-wrap" hidden><iframe id="player" title="BingeAPI diagnostic player" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>
+  <table>
+    <thead><tr><th>Title</th><th>Preferred server</th><th>Reported first server</th><th>Result</th><th>Detail</th></tr></thead>
+    <tbody id="results"></tbody>
+  </table>
+  <script type="module">
+    const origin = 'https://bingeapi.st'
+    const servers = [
+      { id: 81, name: 'Aldebaran' }, { id: 80, name: 'Sirius' }, { id: 94, name: 'Tarazed' },
+      { id: 85, name: 'Markab' }, { id: 87, name: 'Yildun' }, { id: 86, name: 'Vega' },
+      { id: 93, name: 'Mira' }, { id: 84, name: 'Wezen' }, { id: 82, name: 'Fomalhaut' },
+      { id: 88, name: 'Nashira' }, { id: 92, name: 'Botein' }, { id: 91, name: 'Ogma' },
+    ]
+    const titleSchema = (item) => {
+      if (!item || typeof item !== 'object' || typeof item.label !== 'string' || !item.label.trim() || item.label.length > 100) return false
+      if (!Number.isSafeInteger(item.id) || item.id < 1) return false
+      if (item.kind === 'movie') return item.season === undefined && item.episode === undefined
+      return item.kind === 'tv' && Number.isSafeInteger(item.season) && item.season > 0 && Number.isSafeInteger(item.episode) && item.episode > 0
+    }
+    const $ = (id) => document.getElementById(id)
+    const frame = $('player')
+    const rows = []
+    let stopped = false
+    let activeResolve = null
+    let activeTimer = 0
+
+    function csvCell(value) { return `"${String(value ?? '').replaceAll('"', '""')}"` }
+    function downloadCsv() {
+      const header = ['title', 'kind', 'tmdb_id', 'season', 'episode', 'preferred_server_id', 'preferred_server', 'reported_first_server', 'result', 'detail']
+      const content = [header, ...rows.map((r) => [r.title, r.kind, r.id, r.season ?? '', r.episode ?? '', r.preferredId, r.preferredName, r.firstServer ?? '', r.result, r.detail])].map((line) => line.map(csvCell).join(',')).join('\r\n')
+      const link = document.createElement('a')
+      link.href = URL.createObjectURL(new Blob([content], { type: 'text/csv;charset=utf-8' }))
+      link.download = 'bingeapi-server-check.csv'
+      link.click()
+    setTimeout(() => URL.revokeObjectURL(link.href), 1000)
+    }
+    function addRow(result) {
+      rows.push(result)
+      const tr = document.createElement('tr')
+      for (const value of [result.title, `${result.preferredName} (${result.preferredId})`, result.firstServer || '—', result.result, result.detail || '—']) {
+        const td = document.createElement('td')
+        td.textContent = value
+        tr.append(td)
+      }
+      $('results').append(tr)
+      $('download').disabled = false
+    }
+    function makeUrl(media, preferredId) {
+      const path = media.kind === 'movie'
+        ? `/embed/movie/${media.id}`
+        : `/embed/tv/${media.id}/${media.season}/${media.episode}`
+      const url = new URL(path, origin)
+      url.searchParams.set('autoplay', '0')
+      url.searchParams.set('welcome', '1')
+      url.searchParams.set('color', '7DD3FC')
+      url.searchParams.set('theme', 'dark')
+      url.searchParams.set('resume', '0')
+      url.searchParams.set('servers', String(preferredId))
+      return url.toString()
+    }
+    function probe(media, preferred) {
+      return new Promise((resolve) => {
+        let settled = false
+        let lastError = ''
+        const onMessage = (event) => {
+          if (event.origin !== origin || event.source !== frame.contentWindow) return
+          const data = event.data
+          if (!data || data.source !== 'bingeapi_player' || typeof data.event !== 'string') return
+          if (data.event === 'serverchange' && typeof data.info === 'string' && data.info.length <= 100) {
+            const found = servers.find((server) => server.name === data.info)
+            const result = found?.id === preferred.id ? 'preferred server selected' : found ? 'fallback server selected' : 'server reported'
+            finish({ firstServer: data.info, result, detail: found ? '' : 'Server name was not in the published list.' })
+          } else if (data.event === 'error' && typeof data.info === 'string' && data.info.length <= 500) {
+            lastError = data.info
+            $('status').textContent = `Player reported an error while checking ${media.label}; waiting for fallback…`
+          }
+        }
+        const finish = (result) => {
+          if (settled) return
+          settled = true
+          clearTimeout(activeTimer)
+          activeResolve = null
+          frame.onload = null
+          window.removeEventListener('message', onMessage)
+          frame.src = 'about:blank'
+          resolve(result)
+        }
+        const timeout = () => finish(lastError
+          ? { firstServer: '', result: 'player error', detail: lastError }
+          : { firstServer: '', result: 'inconclusive', detail: 'Timed out before a validated player event; it may be blocked or require interaction.' })
+        activeTimer = setTimeout(timeout, 30_000)
+        frame.onload = () => {
+          $('status').textContent = `Loaded ${media.label} with ${preferred.name} first. Click the player welcome/play control if shown; waiting for a validated server event…`
+        }
+        window.addEventListener('message', onMessage)
+        activeResolve = () => finish({ firstServer: '', result: 'stopped', detail: 'Stopped by user.' })
+        frame.src = makeUrl(media, preferred.id)
+      })
+    }
+    $('run').addEventListener('click', async () => {
+      let media
+      try { media = JSON.parse($('titles').value) } catch { $('status').textContent = 'Input must be valid JSON.'; return }
+      if (!Array.isArray(media) || media.length < 1 || media.length > 5 || !media.every(titleSchema)) {
+        $('status').textContent = 'Provide 1–5 titles. Movies need label/kind/id; TV episodes also need positive season and episode numbers.'
+        return
+      }
+      stopped = false
+      rows.length = 0
+      $('results').replaceChildren()
+      $('run').disabled = true
+      $('stop').disabled = false
+      $('download').disabled = true
+      $('frame-wrap').hidden = false
+      const total = media.length * servers.length
+      let completed = 0
+      for (const item of media) {
+        for (const server of servers) {
+          if (stopped) break
+          $('status').textContent = `Checking ${item.label}: ${server.name} (${server.id}) first · ${completed + 1} of ${total}…`
+          const response = await probe(item, server)
+          addRow({ title: item.label, kind: item.kind, id: item.id, season: item.season, episode: item.episode, preferredId: server.id, preferredName: server.name, ...response })
+          completed += 1
+          if (stopped) break
+          await new Promise((done) => setTimeout(done, 700))
+        }
+        if (stopped) break
+      }
+      $('frame-wrap').hidden = true
+      $('status').textContent = stopped ? 'Stopped. Completed rows are available to download.' : `Done. Recorded ${rows.length} probes. A fallback result means the preferred server was not first; it does not mean the title is absent from BingeAPI.`
+      $('run').disabled = false
+      $('stop').disabled = true
+    })
+    $('stop').addEventListener('click', () => { stopped = true; activeResolve?.() })
+    $('download').addEventListener('click', downloadCsv)
+  </script>
+</body>
+</html>

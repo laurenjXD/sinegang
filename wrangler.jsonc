@@ -1,0 +1,15 @@
+{
+  "name": "sinegang",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    "not_found_handling": "single-page-application",
+    "run_worker_first": [
+      "/api/*"
+    ]
+  },
+  "vars": {
+    "PLAYBACK_PROVIDER": "bingeapi",
+    "BINGEAPI_WELCOME": "1"
+  }
+}
