@@ -7,12 +7,19 @@
 | FR-02–06 | Live TMDB discovery, search and title details | `/browse` has source-labeled live shelves; search is shareable; `/api/title/:kind/:id` returns validated public detail fields and numbered TV seasons. Title details now build BingeAPI watch routes from the same TMDB ID. A local Vite bridge invokes the same Hono handlers through proxy-aware Node fetch. | All nine discovery/genre shelves and search returned 200. Token is in ignored `.dev.vars`. | In progress: cast/trailers, approved artwork, regional UX and validating production Worker egress |
 | FR-07 | BingeAPI selected in local development and production Wrangler configuration; no public deployment | `scripts/test_tmdb_bingeapi.py` sampled every title shelf and search, routed IDs through the resolver, and verified matching BingeAPI page titles: 7/7 matched. TypeScript and 20 tests pass; production build completed. The resolver returns `pending` until player events confirm playback; actual browser playback remains unverified. | In progress: provider/browser challenge compatibility, source coverage, and responsive playback QA before any release |
 | FR-08–11, FR-13 | Auth, library, settings, admin | Pending | Planned |
-| COMM-01 | Private rating contract, owner RLS and unique key; local half-star detail preview; authenticated GET/PUT/DELETE Worker routes | 5 unit/API tests, TypeScript, ESLint and production build passed; no Supabase integration environment or applied migration | In progress: auth UI and live persistence unverified |
-| COMM-02 | Aggregate table and public view from opted-in, eligible ratings; separate TMDB and Sinegang empty summaries | SQL authored, not applied or integration tested; desktop UI inspected with no overflow | In progress |
-| COMM-03 | Review, report, block and moderation schema; published review empty state | Schema authored; public review API disabled | Gated by safety and policy verification |
-| Release | Deployment requires explicit approval | Not run | Blocked |
+| COMM-01 | Private rating contract, owner RLS and unique key; local half-star detail preview; authenticated GET/PUT/DELETE Worker routes | Supabase schema applied to owner-confirmed project; no ratings exist yet; local API still needs Worker bindings | In progress: auth UI and live persistence unverified |
+| COMM-02 | Aggregate table and public view from opted-in, eligible ratings; separate TMDB and Sinegang empty summaries | RLS-safe `security_invoker` view, excludes zero-count cache rows; Supabase security advisor has no findings; no community ratings exist yet | In progress: API wiring and live share/withdraw tests |
+| COMM-03 | Review, report, block and moderation schema; published review empty state | Schema applied; no public review API is enabled; client access to moderation audit table is blocked | Gated by safety and policy verification |
+| Release | Production deployment previously approved by owner | Not run; Cloudflare connection lacks Worker script read/write scopes | Blocked |
 
 The production Wrangler config selects BingeAPI, but no public deployment or paid service has been activated. Real playback remains unverified.
+
+## Connected Supabase foundation — 2026-11-25
+
+- Applied `community_private_foundation`, `community_rating_public_rls_hardening`, and `restrict_rls_auto_enable_execution` to the owner-confirmed Supabase project. Six community tables exist with RLS enabled; all are empty.
+- The public rating view now uses `security_invoker` and the `rating_count > 0` policy, so private zero-count cache rows are not exposed. The pre-existing RLS auto-enable event-trigger function is no longer executable by `anon` or `authenticated` clients.
+- Re-ran Supabase security and performance advisors: no security lints; performance advisor reports only unused indexes because the new tables have no rows. No user ratings or reviews have been added.
+- Supabase project details are available through the connected Supabase app, but are not bound to the Worker. Cloudflare MCP still needs `workers-scripts.read` and `workers-scripts.write` before Worker settings can be checked or deployed.
 
 The local browser preview at 1153px showed readable headline, visible CTA, and a balanced first story chapter. Mobile, tablet, dark mode, reduced motion, and animation timing have not yet been inspected.
 

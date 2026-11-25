@@ -64,3 +64,10 @@
 - Added a production setup guide for Cloudflare, TMDB, Supabase, migration, and playback checks; aligned `.env.example` with BingeAPI configuration and ignored local env files. Deployment remains blocked on secure account connections and an identified existing production target.
 
 - Attempted production deployment; blocked before publish because Cloudflare credentials are not connected. No Sinegang Sites project or production URL was found, and no public deployment occurred.
+
+## 2026-11-25
+
+- Applied the private community ratings/reviews foundation to the owner-confirmed Supabase project. Six community tables are present with RLS enabled and no user data.
+- Added follow-up migrations so the public aggregate view obeys RLS, omits zero-count rows that could reveal private activity, and the moderation audit table is client-locked. Restricted a pre-existing security-definer event-trigger helper from browser roles.
+- Verified all three remote migrations, six RLS-enabled tables, and no Supabase security-advisor findings. Performance advisor reports unused indexes because the tables are empty.
+- Deployment remains blocked because this workspace's Cloudflare MCP connection lacks Worker script read/write scopes. No Worker was changed or deployed.

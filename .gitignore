@@ -11,3 +11,4 @@ playwright-report/
 *.tsbuildinfo
 __pycache__/
 *.py[cod]
+supabase/.temp/

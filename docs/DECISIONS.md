@@ -21,6 +21,7 @@ V6 is authoritative. Entries marked approved come from the user's request and `I
 | COMM-02 | 2026-11-24 | Half-star ratings, private by default, explicit sharing and withdrawal | Direct user requirement | Approved | Contracts, database, UI |
 | COMM-03 | 2026-11-24 | Public aggregates use only eligible shared ratings; public reviews require privacy and moderation gates | Direct user requirement and safety boundary | Approved | Database, API |
 | COMM-04 | 2026-11-24 | Sinegang and TMDB ratings stay separately labeled; blue rating visuals and orange submission | Direct user requirement | Approved | Detail pages |
+| SUP-01 | 2026-11-25 | Use the owner-confirmed Supabase project for the private community foundation; keep public reviews disabled pending safety work | Owner confirmation and privacy requirements | Applied with RLS and security-advisor verification | Supabase migrations, community APIs |
 | COMM-UX-01 | 2026-11-24 | Concise rating summary by metadata, dedicated histogram and review section | User approved recommendation | Approved | Detail pages |
 | COMM-UX-02 | 2026-11-24 | Separate explicit sharing controls for ratings and reviews | User approved privacy-first interaction | Approved | Rating and review forms |
 | COMM-UX-03 | 2026-11-24 | Confidence-aware community ranking plus separate emerging area | User approved recommendation | Approved | Community discovery |
