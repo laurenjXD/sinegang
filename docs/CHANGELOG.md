@@ -71,3 +71,4 @@
 - Added follow-up migrations so the public aggregate view obeys RLS, omits zero-count rows that could reveal private activity, and the moderation audit table is client-locked. Restricted a pre-existing security-definer event-trigger helper from browser roles.
 - Verified all three remote migrations, six RLS-enabled tables, and no Supabase security-advisor findings. Performance advisor reports unused indexes because the tables are empty.
 - Deployment remains blocked because this workspace's Cloudflare MCP connection lacks Worker script read/write scopes. No Worker was changed or deployed.
+- Built the production Worker and client; Wrangler dry-run packaged five static assets. Removed the generated `.dev.vars` sidecar and verified the TMDB token was not embedded in the other artifacts. Actual deploy stopped before upload because `CLOUDFLARE_API_TOKEN` is not configured in this workspace.

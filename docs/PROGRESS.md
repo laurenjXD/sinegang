@@ -10,7 +10,7 @@
 | COMM-01 | Private rating contract, owner RLS and unique key; local half-star detail preview; authenticated GET/PUT/DELETE Worker routes | Supabase schema applied to owner-confirmed project; no ratings exist yet; local API still needs Worker bindings | In progress: auth UI and live persistence unverified |
 | COMM-02 | Aggregate table and public view from opted-in, eligible ratings; separate TMDB and Sinegang empty summaries | RLS-safe `security_invoker` view, excludes zero-count cache rows; Supabase security advisor has no findings; no community ratings exist yet | In progress: API wiring and live share/withdraw tests |
 | COMM-03 | Review, report, block and moderation schema; published review empty state | Schema applied; no public review API is enabled; client access to moderation audit table is blocked | Gated by safety and policy verification |
-| Release | Production deployment previously approved by owner | Not run; Cloudflare connection lacks Worker script read/write scopes | Blocked |
+| Release | Production deployment explicitly requested; first-production bundle is ready | TypeScript and Vite production builds passed; Wrangler dry-run packaged the Worker plus five static assets (987.16 KiB total). Actual deploy stopped before upload because this workspace has no `CLOUDFLARE_API_TOKEN`; no Cloudflare resources changed. | Blocked on secure deployment credential and production bindings |
 
 The production Wrangler config selects BingeAPI, but no public deployment or paid service has been activated. Real playback remains unverified.
 
@@ -19,7 +19,14 @@ The production Wrangler config selects BingeAPI, but no public deployment or pai
 - Applied `community_private_foundation`, `community_rating_public_rls_hardening`, and `restrict_rls_auto_enable_execution` to the owner-confirmed Supabase project. Six community tables exist with RLS enabled; all are empty.
 - The public rating view now uses `security_invoker` and the `rating_count > 0` policy, so private zero-count cache rows are not exposed. The pre-existing RLS auto-enable event-trigger function is no longer executable by `anon` or `authenticated` clients.
 - Re-ran Supabase security and performance advisors: no security lints; performance advisor reports only unused indexes because the new tables have no rows. No user ratings or reviews have been added.
-- Supabase project details are available through the connected Supabase app, but are not bound to the Worker. Cloudflare MCP still needs `workers-scripts.read` and `workers-scripts.write` before Worker settings can be checked or deployed.
+- Supabase project details are available through the connected Supabase app, but are not bound to the Worker. Cloudflare MCP account and Worker read access work; Wrangler still needs a scoped deployment token.
+
+## Production deployment attempt — 2026-11-25
+
+- The connected Cloudflare account has no existing Workers or Pages projects; a Workers subdomain is available. Wrangler is not authenticated in this workspace.
+- Built the production Worker and static client. The generated `.dev.vars` sidecar was removed from the build output; a scan confirmed the local TMDB token was not embedded in other artifacts.
+- Wrangler `deploy --dry-run --config dist/sinegang/wrangler.json` succeeded and reported five static assets. The actual deploy stopped before upload because `CLOUDFLARE_API_TOKEN` is absent. No public Worker was created.
+- The production Worker still needs `TMDB_API_TOKEN` as a Cloudflare secret and `VITE_SUPABASE_URL` / `VITE_SUPABASE_PUBLISHABLE_KEY` as Worker variables. The Supabase migrations are applied, but these bindings are not configured on Cloudflare.
 
 The local browser preview at 1153px showed readable headline, visible CTA, and a balanced first story chapter. Mobile, tablet, dark mode, reduced motion, and animation timing have not yet been inspected.
 
